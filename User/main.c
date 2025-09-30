@@ -37,33 +37,10 @@ static uint16_t adcAcc = 0;
 static volatile uint16_t adcRead = 0;
 
 /*********************************************************************
- * @fn      TIM2_IRQHandler
- *
- * @brief   This function handles timer 2
- *
- * @return  none
- */
-__attribute__((interrupt, __used__)) void TIM2_IRQHandler(void)
-{
-    // should only receive the update flag.  ignore other flags.
-    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-        t2count++;
-        if (t2count >= 20)
-        {
-            t2count = 0;
-            main_counter++;
-            main_flag = 1;
-        }
-    }
-    return;
-}
-
-/*********************************************************************
  * @fn      ADC1_IRQHandler
  *
- * @brief   This function handles timer 2
+ * @brief   This function handles the ADC.  Each 12 cycles, it
+ * 			sets the main flag and increases the main counter.
  *
  * @return  none
  */
@@ -79,6 +56,7 @@ __attribute__((interrupt, __used__)) void ADC1_IRQHandler(void)
             main_counter++;
             main_flag = 1;
             adcRead = adcAcc;
+			// clear accumulator with the first reading
             adcAcc = ADC1->RDATAR;
         }
         else
@@ -171,19 +149,19 @@ void USER_TIMER_SETUP(void)
     TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure = {0};
     TIM_OCInitTypeDef TIM_OCInitStructure = {0};
 
-    // we are using timer2 for PWM output.  Timer1 is the system timer
+    // we are using timer2 for PWM output.  Timer1 is the ADC trigger.
     // assume that the GPIO setup has already remapped us
     // assume that we are using the 24MHz HSI oscillator
     // assume that HPRE is set to no division
-    // target: 120 cycles * 20kHz (timer top rate)
-    // this means that the prescaler division rate should be set to 10
-    // which means that the register should be set to 9
-    // the timer period should be 240 counts, so the period
-    // is set to 239
+    // target: 120 cycles * 50kHz (timer top rate)
+    // this means that the prescaler division rate should be set to 4
+    // which means that the register should be set to 3
+    // the timer period should be 120 counts, so the period
+    // is set to 119
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 
     TIM_TimeBaseInitStructure.TIM_Period = 119;
-    TIM_TimeBaseInitStructure.TIM_Prescaler = 9;
+    TIM_TimeBaseInitStructure.TIM_Prescaler = 0;
     TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
     TIM_TimeBaseInit(TIM2, &TIM_TimeBaseInitStructure);
@@ -204,12 +182,23 @@ void USER_TIMER_SETUP(void)
     TIM_GenerateEvent(TIM2, TIM_EventSource_Update);
 
     // assuming the 24MHz clock
-    // we are using timer1 as a system timer and to drive the ADC trigger
+    // we are using timer1 as an ADC trigger
+    // the ADC triggers the system timer once every 12 cycles
     // target: 12 * 16 * 8 Hz
     // 8 cycles for the heartbeat
     // 16 cycles for heartbeat dimming
     // (we are up to 128 Hz)
     // 12 cycles for 12 ADC samples
+    //
+    // this puts the target rate of the timer at 1 536 Hz
+    // which can be accomplished by dividing the HSI clock
+    // directly.
+    // {main clock} / {target rate} = {total division}
+    // 24e6 / 1 536 = 15 625
+    // {prescaler} * {period} = {total division}
+    // 125 * 125 = 15 625
+    // the values entered into the registers are one less than the calculated
+    // values here.
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 
     TIM_TimeBaseInitStructure.TIM_Period = 124;

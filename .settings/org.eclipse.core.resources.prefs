@@ -4,6 +4,7 @@ encoding//Core/core_riscv.h=GBK
 encoding//Ld/Link.ld=GBK
 encoding//Peripheral/inc/ch32v00x.h=GBK
 encoding//Peripheral/inc/ch32v00x_gpio.h=GBK
+encoding//Peripheral/inc/ch32v00x_i2c.h=GBK
 encoding//Peripheral/inc/ch32v00x_misc.h=GBK
 encoding//Peripheral/inc/ch32v00x_rcc.h=GBK
 encoding//Peripheral/inc/ch32v00x_tim.h=GBK
